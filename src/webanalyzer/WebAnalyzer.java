@@ -255,12 +255,16 @@ public class WebAnalyzer {
      * <pre>
      * "d:\\Work\\Progs\\Result"</pre>
      */
-    public void saveDataToHDD(String path) {
-        SaveSiteData ssd = new SaveSiteData(site);
-        ssd.saveSiteDataToHDD(path);
+    public void saveDataToHDD(Site site, String path) {
+        SaveSiteData ssd = new SaveDataToHDD(path);
+        ssd.saveData(site);
     }
 
     public String getWebPageURL() {
         return webPageURL;
+    }
+
+    public Site getSite() {
+        return site;
     }
 }

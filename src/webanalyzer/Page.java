@@ -1,5 +1,7 @@
 package webanalyzer;
 
+import java.util.Objects;
+
 public class Page {
 
     private final int pageSymbolCounter;
@@ -48,5 +50,19 @@ public class Page {
                     + "\nPhrase to seek matches is \"" + phraseMatch + "\""
                     + "\nCount of matches in page code = " + pageMatchesCounter;
         }
+    }
+
+    public boolean equals(Object o) {
+        return this.hashCode() == o.hashCode();
+    }
+
+    @Override
+    public int hashCode() {
+        int hash = 7;
+        hash = 89 * hash + this.pageSymbolCounter;
+        hash = 89 * hash + this.pageMatchesCounter;
+        hash = 89 * hash + Objects.hashCode(this.pageName);
+        hash = 89 * hash + Objects.hashCode(this.phraseMatch);
+        return hash;
     }
 }
