@@ -1,5 +1,6 @@
 package webanalyzer;
 
+import java.io.File;
 import java.util.*;
 import org.junit.*;
 import static org.junit.Assert.*;
@@ -25,16 +26,10 @@ public class WebAnalyzerTest {
     }
 
     @Test
-    public void testScanWebSite() {
-        WebAnalyzer wa = new WebAnalyzer("http://lostfilm.tv", "html");
-        wa.scanWebSite();
-    }
-
-    @Test
     public void testReturnCleanURLHTTP() {
         WebAnalyzer wa = new WebAnalyzer("http://www.beluys.com/html_basics/html_page.html");
         String expected = "www.beluys.com";
-        assertEquals(expected, wa.returnCleanURL("http://www.beluys.com/html_basics/html_page.html"));
+        assertEquals(expected, wa.returnCleanURL(wa.getWebPageURL()));
     }
 
     @Test
@@ -96,29 +91,11 @@ public class WebAnalyzerTest {
     }
 
     @Test
-    public void testAlignFolderName() {
-        WebAnalyzer wa = new WebAnalyzer("anyString");
-        String tested = wa.alignFolderName("http://lostfilm.tv/news.php?act=full&type=1&id=3979");
-        String expected = "lostfilm-tv-news-php-act-full-type-1-id-3979";
-        assertEquals(expected, tested);
-    }
-
-    @Test(expected = NullPointerException.class)
-    public void testSaveDataNullPointerEx() {
-        WebAnalyzer wa = new WebAnalyzer("anyString");
-        wa.saveData(null);
-    }
-
-    @Test
-    public void testSaveDataTrue() {
-        WebAnalyzer wa = new WebAnalyzer("anyString");
-        assertTrue(wa.saveData("http://+anyString&with?complicated^%$symbols"));
-    }
-
-    @Test
-    public void testSaveDataFalse() {
-        WebAnalyzer wa = new WebAnalyzer("www.beluys.com/html_basics/html_page.html", "html");
-        wa.scanWebPage();
-        assertFalse(wa.saveData(wa.getWebPageURL()));
+    public void testSaveDataToHDD() {
+        WebAnalyzer wa = new WebAnalyzer("http://www.beluys.com/html_basics/html_page.html");
+        wa.scanWebSite();
+        wa.saveDataToHDD("d:\\123asd");
+        File f = new File("d:\\123asd\\www-beluys-com-html_basics-html_page-html");
+        assertTrue(f.isDirectory());
     }
 }

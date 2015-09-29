@@ -6,10 +6,6 @@ import java.util.*;
 import java.util.concurrent.*;
 import java.util.regex.*;
 
-/**
- *
- * @author Admin
- */
 public class WebAnalyzer {
 
     private URL url;
@@ -25,6 +21,12 @@ public class WebAnalyzer {
     private int pageSymbolCounter = 0;
     private int pageMatchesCounter = 0;
     private ExecutorService exec = Executors.newCachedThreadPool();
+    private static Site site = new Site();
+    private final String HTTP = "http://";
+    private final String HTTPS = "https://";
+    private final String HREF = "href=\"";
+    private final String SLASH = "/";
+    private final String QUOTES = "\"";
 
     public WebAnalyzer(String webPageURL) {
         this.webPageURL = webPageURL;
@@ -35,15 +37,6 @@ public class WebAnalyzer {
         this.phraseMatch = phraseMatch;
     }
 
-    /**
-     * Returns true if the Web Page was sucesfully scan. If URL is valid, method
-     * scans a Web Page, fills the queue visit the following pages, saves data
-     * on hard drive.
-     *
-     * @return boolean result of web page scan.
-     *
-     * @throws NullPointerException if {@code webPageURL} is null.
-     */
     boolean scanWebPage() {
         try {
             if (webPageURL == null) {
@@ -51,7 +44,7 @@ public class WebAnalyzer {
             }
             url = new URL(webPageURL);
             if (visitedInnerLinks.isEmpty()) {
-                visitedInnerLinks.add(getWebPageURL());
+                visitedInnerLinks.add(webPageURL);
             }
         } catch (MalformedURLException e) {
             System.err.println(e);
@@ -62,7 +55,6 @@ public class WebAnalyzer {
             try {
                 conn = (HttpURLConnection) url.openConnection();
                 in = new BufferedReader(new InputStreamReader(conn.getInputStream()));
-                final String HREF = "href=:";
                 while ((pageCodeString = in.readLine()) != null) {
                     pageSymbolCounter += pageCodeString.length();
                     if (phraseMatch != null) {
@@ -74,11 +66,11 @@ public class WebAnalyzer {
                     }
                     while (fullCheckPCS(pageCodeString)) {
                         addToTempSet(pageCodeString, tempInnerLinks, webPageURL);
-                        pageCodeString = pageCodeString.substring(pageCodeString.indexOf("href") + HREF.length());
+                        pageCodeString = pageCodeString.substring(pageCodeString.indexOf(HREF) + HREF.length());
                     }
                 }
                 fillVisited();
-                saveData(webPageURL);
+                savePageDataToSiteDB(site, webPageURL, pageSymbolCounter, pageMatchesCounter, phraseMatch);
             } catch (IOException e) {
                 System.err.println(e);
             }
@@ -106,11 +98,6 @@ public class WebAnalyzer {
         return result;
     }
 
-    /**
-     * Method scans Web Site creating a separated thread for each page. Received
-     * data saves in path: "c\WebAnalyzer\pageName\".
-     *
-     */
     public void scanWebSite() {
         scanWebPage();
         while (!haveToVisit.isEmpty()) {
@@ -131,14 +118,9 @@ public class WebAnalyzer {
                 System.err.println(e);
             }
         }
+        exec.shutdown();
     }
 
-    /**
-     * Method returns matches in the incoming String by pattern
-     *
-     * @param stringToCheck is a String to be checked
-     * @param pattern is a String pattern
-     */
     private boolean checkPageCodeString(String stringToCheck, String pattern) {
         Pattern myPattern = Pattern.compile(pattern);
         Matcher myMatcher = myPattern.matcher(stringToCheck);
@@ -160,26 +142,13 @@ public class WebAnalyzer {
                 || checkPageCodeString(stringToCheck, ".*\\.xml.*");
     }
 
-    /**
-     * Returns cutted string contains only Web Page name and its domain or
-     * domains.
-     *
-     * @param inputString is a setted URL in constructor.
-     *
-     * @return main page URL as a String
-     *
-     * @throws IllegalArgumentException if URL is not valid (means setted URL in
-     * constructor is not valid)
-     */
     String returnCleanURL(String inputString) {
         if (URLisValid) {
             String resultString = inputString;
-            final String HTTP = "http://";
-            final String HTTPS = "https://";
-            final int indOfHttp = resultString.indexOf("http");
-            final int indOfHttps = resultString.indexOf("https");
-            final int indOfSlash = resultString.indexOf("/", (indOfHttp + HTTP.length()));
-            final int indOfSlashHttps = resultString.indexOf("/", (indOfHttp + HTTPS.length()));
+            final int indOfHttp = resultString.indexOf(HTTP);
+            final int indOfHttps = resultString.indexOf(HTTPS);
+            final int indOfSlash = resultString.indexOf(SLASH, (indOfHttp + HTTP.length()));
+            final int indOfSlashHttps = resultString.indexOf(SLASH, (indOfHttps + HTTPS.length()));
             if (indOfSlashHttps != -1) {
                 if (indOfHttps != -1) {
                     resultString = resultString.substring(indOfHttps + HTTPS.length(), indOfSlashHttps);
@@ -215,18 +184,9 @@ public class WebAnalyzer {
         }
     }
 
-    /**
-     * The method adds to the collection String URL (an internal link on the
-     * page) after processing the original line of code page.
-     *
-     * @param inputString is an original line of code page.
-     * @param inputCollection is a collection where the element is added.
-     *
-     */
     void addSimpleLink(String inputString, Collection inputCollection) {
-        final String HREF = "href=:";
         final int indOfHrefHttp = inputString.indexOf("href=\"http");
-        final int indOfQuotes = inputString.indexOf("\"", (indOfHrefHttp + HREF.length()));
+        final int indOfQuotes = inputString.indexOf(QUOTES, (indOfHrefHttp + HREF.length()));
         if (indOfQuotes != -1) {
             inputString = inputString.substring((indOfHrefHttp + HREF.length()), indOfQuotes);
             if (simpleCheckPCS(inputString)) {
@@ -235,107 +195,71 @@ public class WebAnalyzer {
         }
     }
 
-    /**
-     * The method adds to the collection String URL (an internal link on the
-     * page) after processing the original line of code page.
-     *
-     * @param inputString is an original line of code page.
-     * @param inputCollection is a collection where the element is added.
-     * @param inputWebPageURL is a URL of this page, required for processing.
-     *
-     */
     void addComplicatedLink(String inputString, Collection inputCollection, String inputWebPageURL) {
-        final String HREF = "href=:";
-        final int indOfHref = inputString.indexOf("href=\"");
-        final int indOfQuotes = inputString.indexOf("\"", (indOfHref + HREF.length()));
-        if (indOfQuotes != -1) {
-            inputString = inputString.substring((indOfHref + HREF.length()), indOfQuotes);
-            if (simpleCheckPCS(inputString)) {
-                if (inputWebPageURL.equals("http://" + returnCleanURL(inputWebPageURL))
-                        || inputWebPageURL.equals("https://" + returnCleanURL(inputWebPageURL))) {
-                    if (inputString.charAt(0) != '/') {
-                        inputCollection.add(inputWebPageURL + "/" + inputString);
-                    } else {
-                        inputCollection.add(inputWebPageURL + inputString);
-                    }
-                } else if (inputWebPageURL.equals("http://" + returnCleanURL(inputWebPageURL) + "/")
-                        || inputWebPageURL.equals("https://" + returnCleanURL(inputWebPageURL) + "/")) {
-                    if (inputString.charAt(0) != '/') {
-                        inputCollection.add(inputWebPageURL + inputString);
-                    } else {
-                        if (inputWebPageURL.equals("http://" + returnCleanURL(inputWebPageURL) + "/")) {
-                            inputCollection.add("http://" + returnCleanURL(inputWebPageURL) + inputString);
-                        } else {
-                            inputCollection.add("https://" + returnCleanURL(inputWebPageURL) + inputString);
-                        }
-                    }
+        final char CHAR_SLASH = '/';
+        final int indOfHref = inputString.indexOf(HREF);
+        final int indOfQuotes = inputString.indexOf(QUOTES, (indOfHref + HREF.length()));
+        if (indOfQuotes == -1) {
+            return;
+        }
+        inputString = inputString.substring((indOfHref + HREF.length()), indOfQuotes);
+        if (!simpleCheckPCS(inputString)) {
+            return;
+        }
+        if (inputWebPageURL.equals(HTTP + returnCleanURL(inputWebPageURL))
+                || inputWebPageURL.equals(HTTPS + returnCleanURL(inputWebPageURL))) {
+            if (inputString.charAt(0) != CHAR_SLASH) {
+                inputCollection.add(inputWebPageURL + SLASH + inputString);
+            } else {
+                inputCollection.add(inputWebPageURL + inputString);
+            }
+        } else if (inputWebPageURL.equals(HTTP + returnCleanURL(inputWebPageURL) + SLASH)
+                || inputWebPageURL.equals(HTTPS + returnCleanURL(inputWebPageURL) + SLASH)) {
+            if (inputString.charAt(0) != CHAR_SLASH) {
+                inputCollection.add(inputWebPageURL + inputString);
+            } else {
+                if (inputWebPageURL.equals(HTTP + returnCleanURL(inputWebPageURL) + SLASH)) {
+                    inputCollection.add(HTTP + returnCleanURL(inputWebPageURL) + inputString);
                 } else {
-                    String handleWPU = inputWebPageURL;
-                    final int lastIndOfSlash = handleWPU.lastIndexOf("/");
-                    if (inputString.charAt(0) != '/') {
-                        handleWPU = handleWPU.substring(0, lastIndOfSlash + 1);
-                        inputCollection.add(handleWPU + inputString);
-                    } else {
-                        handleWPU = handleWPU.substring(0, lastIndOfSlash);
-                        inputCollection.add(handleWPU + inputString);
-                    }
+                    inputCollection.add(HTTPS + returnCleanURL(inputWebPageURL) + inputString);
                 }
             }
-        }
-    }
-
-    String alignFolderName(String inputString) {
-        final String HTTP = "http://";
-        final String HTTPS = "https://";
-        final int indOfHttp = inputString.indexOf("http");
-        final int indOfHttps = inputString.indexOf("https");
-        if (indOfHttps != -1) {
-            inputString = inputString.substring(indOfHttps + HTTPS.length());
         } else {
-            inputString = inputString.substring(indOfHttp + HTTP.length());
-        }
-        inputString = inputString.replaceAll("\\W", "-");
-        return inputString;
-    }
-
-    boolean saveData(String inputStringWebPageURL) {
-        if (inputStringWebPageURL == null) {
-            throw new NullPointerException();
-        }
-        if (URLisValid) {
-            String folderName = inputStringWebPageURL;
-            folderName = alignFolderName(folderName);
-            File f = new File("c:\\WebAnalyzer\\" + folderName);
-            f.mkdirs();
-            try {
-                PrintWriter outPageName = new PrintWriter(new BufferedWriter(new FileWriter("c:\\WebAnalyzer\\" + folderName + "\\Page URL.txt")));
-                PrintWriter outSymbolCounter = new PrintWriter(new BufferedWriter(new FileWriter("c:\\WebAnalyzer\\" + folderName + "\\Page symbol counter.txt")));
-                PrintWriter outMatchesCounter = new PrintWriter(new BufferedWriter(new FileWriter("c:\\WebAnalyzer\\" + folderName + "\\Page matches counter.txt")));
-                try {
-                    outPageName.println(inputStringWebPageURL);
-                    outSymbolCounter.println(pageSymbolCounter + " symbols in code this page");
-                    if (phraseMatch != null) {
-                        outMatchesCounter.println(pageMatchesCounter + " instances of the phrase \"" + phraseMatch + "\" in code this page");
-                    } else {
-                        outMatchesCounter.println("No phrase to seek matches");
-                    }
-                } finally {
-                    outPageName.close();
-                    outSymbolCounter.close();
-                    outMatchesCounter.close();
-                    return true;
-                }
-            } catch (IOException e) {
-                System.err.println(e);
-                return false;
+            String handleWPU = inputWebPageURL;
+            final int lastIndOfSlash = handleWPU.lastIndexOf(SLASH);
+            if (inputString.charAt(0) != CHAR_SLASH) {
+                handleWPU = handleWPU.substring(0, lastIndOfSlash + 1);
+                inputCollection.add(handleWPU + inputString);
+            } else {
+                handleWPU = handleWPU.substring(0, lastIndOfSlash);
+                inputCollection.add(handleWPU + inputString);
             }
         }
-        return false;
+    }
+
+    private void savePageDataToSiteDB(Site incSite, String incWebPageURL, int incPageSymbolCounter, int incPageMatchesCounter, String incPhraseMatch) {
+        if (incPhraseMatch != null) {
+            incSite.add(new Page(incWebPageURL, incPageSymbolCounter, incPageMatchesCounter, incPhraseMatch));
+        } else {
+            incSite.add(new Page(incWebPageURL, incPageSymbolCounter, incPageMatchesCounter));
+        }
     }
 
     /**
-     * @return the webPageURL
+     *
+     * @param path is a path to save data on users PC.
+     * <p>
+     * For example, if user have to save data in folder "Result"     <pre>
+     * "d:\Work\Progs\Result"
+     * </pre> path must be:
+     * <pre>
+     * "d:\\Work\\Progs\\Result"</pre>
      */
+    public void saveDataToHDD(String path) {
+        SaveSiteData ssd = new SaveSiteData(site);
+        ssd.saveSiteDataToHDD(path);
+    }
+
     public String getWebPageURL() {
         return webPageURL;
     }
