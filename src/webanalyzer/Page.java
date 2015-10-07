@@ -52,6 +52,7 @@ public class Page {
         }
     }
 
+    @Override
     public boolean equals(Object o) {
         return this.hashCode() == o.hashCode();
     }

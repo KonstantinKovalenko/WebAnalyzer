@@ -10,5 +10,4 @@ public class SaveDataInMyCQL implements SaveSiteData {
     public void saveData(Site site) {
         throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
     }
-
 }
