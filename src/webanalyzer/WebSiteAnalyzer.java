@@ -305,6 +305,11 @@ public class WebSiteAnalyzer {
         ssd.saveData(site);
     }
 
+    public void saveDataToMySQL(Site site) {
+        SaveSiteData ssd = new SaveDataInMySQL(returnCleanURL(webPageURL));
+        ssd.saveData(site);
+    }
+
     private boolean objectIsNotNULL(Object o) {
         return o != null;
     }
@@ -336,6 +341,10 @@ public class WebSiteAnalyzer {
         ArrayList<Exception> result = new ArrayList<>();
         result = exceptionHandler.getErrorLog();
         return result;
+    }
+
+    public ExceptionHandler getExceptionHandler() {
+        return exceptionHandler;
     }
 
 }

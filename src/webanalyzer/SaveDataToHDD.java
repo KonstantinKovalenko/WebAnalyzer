@@ -7,9 +7,16 @@ public class SaveDataToHDD implements SaveSiteData {
     private final String path;
     private final String HTTP = "http://";
     private final String HTTPS = "https://";
+    private static ExceptionHandler exceptionHandler;
 
     SaveDataToHDD(String path) {
         this.path = path;
+        createExceptionHandler();
+    }
+
+    private void createExceptionHandler() {
+        WebSiteAnalyzer wsa = new WebSiteAnalyzer("");
+        exceptionHandler = wsa.getExceptionHandler();
     }
 
     private String alignFolderName(String inputString) {
@@ -48,10 +55,10 @@ public class SaveDataToHDD implements SaveSiteData {
                 outMatchesCounter.close();
             }
         } catch (IOException ioe) {
-            System.err.println(ioe);
+            exceptionHandler.handleException(ioe);
         }
     }
-    
+
     @Override
     public void saveData(Site site) {
         for (Object obj : site.getSiteDataBase()) {
